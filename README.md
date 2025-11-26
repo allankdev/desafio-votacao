@@ -35,9 +35,14 @@ O serviço ficará disponível em `http://localhost:8080`.
 ```
 
 ### Banco de dados
-- Console do H2: `http://localhost:8080/h2-console`
+- Console do H2: `http://localhost:8080/h2-console` (adicionado automaticamente ao subir a aplicação; use usuário `sa` e a mesma URL JDBC abaixo)
 - JDBC URL: `jdbc:h2:file:./data/votacao`
 - Usuário: `sa` / Senha: vazia
+
+### Documentação Swagger / OpenAPI
+- UI interativa: `http://localhost:8080/swagger-ui.html` (ou `/swagger-ui/index.html`)
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- A descrição cobre cada endpoint com exemplos de resposta, códigos de erro, schemas e tags (Agendas, Sessões, Votos e Apuração). É possível testar as requisições diretamente pela UI informando as cargas JSON demonstradas abaixo.
 
 ## Endpoints principais (todos versionados em `/api/v1`)
 
