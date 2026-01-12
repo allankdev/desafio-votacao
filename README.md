@@ -116,6 +116,43 @@ Resposta:
 3. Criar testes de performance com Gatling/JMeter.
 4. Persistir sessões históricas distintas caso múltiplas aberturas por pauta sejam necessárias.
 
+## Teste
+
+
+1. AgendaServiceTest
+Valida a criação de pautas com dados válidos.
+Garante que a pauta é persistida corretamente no banco.
+Confirma que o mapeamento da entidade para o DTO de resposta funciona como esperado.
+
+2. VotingSessionServiceTest
+Testa a abertura de sessões de votação: com duração padrão com duração personalizada
+Impede a reabertura de uma sessão já aberta para a mesma pauta.
+Valida a resolução do status da sessão, cobrindo:sessão pendente
+sessão aberta, sessão expirada.
+
+3. VoteServiceTest
+Testa o registro de votos com sucesso.
+Garante a proteção contra voto duplicado (mesmo CPF).
+Valida a rejeição de voto quando o CPF está inapto.
+Testa a apuração dos votos (total, a favor e contra) enquanto a sessão ainda está aberta.
+Trata corretamente o cenário de apuração quando não existe sessão aberta.
+Confirma a propagação da exceção de CPF não encontrado, utilizando o cliente stubad
+
+- `./mvnw test`: validação completa da suíte após as refatorações, garantindo que o perfil `test` roda com H2 em memória e os stubs de CPF simulam respostas variadas.
+
+## Atualizações recentes
+- Refatoradas as entidades `Agenda`, `VotingSession` e `Vote` para aproveitar Lombok e remover getters/setters manuais, mantendo o comportamento atual.
+- Ampliados os testes de serviço para cobrir status pendente/expirado, resumo de votos e falhas de validação de CPF.
+- Executados todos os testes (`./mvnw test`) após as mudanças para confirmar que o suite permanece verde.
+
+## Testes executados
+- `AgendaServiceTest`: garante a criação da pauta com dados válidos.
+- `VotingSessionServiceTest`: cobre abertura com duração padrão, bloqueio de reabertura dupla e resolução de status pendente, aberto e fechado.
+- `VoteServiceTest`: verifica registro bem-sucedido, prevenção de votos duplicados, rejeição quando o CPF não pode votar, compilação da apuração (total/favor/contra) com sessão ativa e resumo pendente quando não há sessão aberta, além de propagar corretamente exceções de CPF não encontrado.
+- `./mvnw test`: executa a suíte completa via Maven wrapper (o comando `mvn` não estava disponível no ambiente e o wrapper foi usado em seu lugar).
+- Os testes usam o perfil `test` com banco H2 em memória, garantindo isolamento entre execuções e reutilizando o stub de validação de CPF para simular retornos positivos, negativos e `404`.
+- A cobertura foca nas regras de negócio: criação de agendas, controle do ciclo de vida das sessões e tratamento das regras de votação (único voto por CPF, CPF habilitado, contagem e status final).
+
 ## Estrutura do código
 
 ```

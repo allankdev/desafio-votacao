@@ -7,8 +7,11 @@ import com.allan.votacao.dto.request.CreateAgendaRequest;
 import com.allan.votacao.dto.request.VoteRequest;
 import com.allan.votacao.dto.response.AgendaResponse;
 import com.allan.votacao.dto.response.VoteResponse;
+import com.allan.votacao.dto.response.VoteResultResponse;
 import com.allan.votacao.exception.CpfUnableToVoteException;
+import com.allan.votacao.exception.CpfValidationNotFoundException;
 import com.allan.votacao.exception.DuplicateVoteException;
+import com.allan.votacao.model.SessionStatus;
 import com.allan.votacao.model.VoteOption;
 import com.allan.votacao.support.StubCpfValidationClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +42,7 @@ class VoteServiceTest {
 
     @BeforeEach
     void setUp() {
-        AgendaResponse agenda = agendaService.create(new CreateAgendaRequest("Votação", "Descrição"));
+        AgendaResponse agenda = agendaService.create(new CreateAgendaRequest("Votacao", "Descricao"));
         votingSessionService.openSession(agenda.id(), 5);
         this.agendaId = agenda.id();
         cpfValidationClient.allowVoting();
@@ -67,5 +70,36 @@ class VoteServiceTest {
 
         assertThrows(CpfUnableToVoteException.class,
                 () -> voteService.registerVote(agendaId, new VoteRequest("99999999999", VoteOption.SIM)));
+    }
+
+    @Test
+    void shouldSummarizeVotesAndKeepSessionOpen() {
+        voteService.registerVote(agendaId, new VoteRequest("33333333333", VoteOption.SIM));
+        voteService.registerVote(agendaId, new VoteRequest("44444444444", VoteOption.NAO));
+
+        VoteResultResponse result = voteService.summarizeAgenda(agendaId);
+
+        assertThat(result.totalVotes()).isEqualTo(2);
+        assertThat(result.votesInFavor()).isEqualTo(1);
+        assertThat(result.votesAgainst()).isEqualTo(1);
+        assertThat(result.sessionStatus()).isEqualTo(SessionStatus.OPEN);
+    }
+
+    @Test
+    void shouldReportPendingStatusWhenNoSessionOpened() {
+        AgendaResponse agenda = agendaService.create(new CreateAgendaRequest("Nova pauta", "Sem sessao"));
+
+        VoteResultResponse summary = voteService.summarizeAgenda(agenda.id());
+
+        assertThat(summary.totalVotes()).isZero();
+        assertThat(summary.sessionStatus()).isEqualTo(SessionStatus.PENDING);
+    }
+
+    @Test
+    void shouldPropagateCpfValidationNotFound() {
+        cpfValidationClient.markAsNotFound();
+
+        assertThrows(CpfValidationNotFoundException.class,
+                () -> voteService.registerVote(agendaId, new VoteRequest("11111111111", VoteOption.SIM)));
     }
 }
