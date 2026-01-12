@@ -13,6 +13,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(
@@ -22,59 +24,28 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_votes_session_cpf", columnList = "session_id,voter_cpf", unique = true)
         }
 )
+@Getter
 public class Vote {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "session_id", nullable = false)
     private VotingSession session;
 
+    @Setter
     @Column(name = "voter_cpf", nullable = false, length = 11)
     private String voterCpf;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private VoteOption choice;
 
+    @Setter
     @Column(nullable = false)
     private LocalDateTime createdAt;
-
-    public Long getId() {
-        return id;
-    }
-
-    public VotingSession getSession() {
-        return session;
-    }
-
-    public void setSession(VotingSession session) {
-        this.session = session;
-    }
-
-    public String getVoterCpf() {
-        return voterCpf;
-    }
-
-    public void setVoterCpf(String voterCpf) {
-        this.voterCpf = voterCpf;
-    }
-
-    public VoteOption getChoice() {
-        return choice;
-    }
-
-    public void setChoice(VoteOption choice) {
-        this.choice = choice;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
 }
