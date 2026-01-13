@@ -10,7 +10,7 @@ Solução em Spring Boot para criação de pautas, abertura de sessões de vota�
 - Versionamento da API por path (`/api/v1/...`), permitindo novas versões lado a lado sem quebrar clientes existentes. Futuras versões podem coexistir via strategy baseada em header (`Accept: application/vnd.votacao.v2+json`) caso necessário.
 - Cliente externo (Fake) para validação de CPF que simula o comportamento de um serviço real: responde com 404 para CPFs “inválidos” e, quando válido, retorna `ABLE_TO_VOTE` ou `UNABLE_TO_VOTE` de forma aleatória.
 - Índices e contagem agregada no banco para suportar grandes volumes de votos.
-- Testes automatizados exercitam os serviços principais.
+- Testes automatizados cobrindo regras de negócio, contratos HTTP e persistência.
 
 ## Como executar
 
@@ -116,45 +116,86 @@ Resposta:
 3. Criar testes de performance com Gatling/JMeter.
 4. Persistir sessões históricas distintas caso múltiplas aberturas por pauta sejam necessárias.
 
-## Teste
+# Testes Automatizados
 
+A suíte de testes foi projetada para garantir a confiabilidade da aplicação cobrindo **regras de negócio**, **contratos HTTP** e **persistência de dados**.  
+Os testes validam tanto cenários de sucesso quanto falhas esperadas, assegurando consistência e isolamento entre execuções.
 
-1. AgendaServiceTest
-Valida a criação de pautas com dados válidos.
-Garante que a pauta é persistida corretamente no banco.
-Confirma que o mapeamento da entidade para o DTO de resposta funciona como esperado.
+---
 
-2. VotingSessionServiceTest
-Testa a abertura de sessões de votação: com duração padrão com duração personalizada
-Impede a reabertura de uma sessão já aberta para a mesma pauta.
-Valida a resolução do status da sessão, cobrindo:sessão pendente
-sessão aberta, sessão expirada.
+## 🧪 Camada de Services
 
-3. VoteServiceTest
-Testa o registro de votos com sucesso.
-Garante a proteção contra voto duplicado (mesmo CPF).
-Valida a rejeição de voto quando o CPF está inapto.
-Testa a apuração dos votos (total, a favor e contra) enquanto a sessão ainda está aberta.
-Trata corretamente o cenário de apuração quando não existe sessão aberta.
-Confirma a propagação da exceção de CPF não encontrado, utilizando o cliente stubad
+### AgendaServiceTest
+Responsável por validar a criação e persistência das pautas.
 
-- `./mvnw test`: validação completa da suíte após as refatorações, garantindo que o perfil `test` roda com H2 em memória e os stubs de CPF simulam respostas variadas.
+- Criação de pautas válidas
+- Persistência correta no banco de dados
 
-## Atualizações recentes
-- Refatoradas as entidades `Agenda`, `VotingSession` e `Vote` para aproveitar Lombok e remover getters/setters manuais, mantendo o comportamento atual.
-- Ampliados os testes de serviço para cobrir status pendente/expirado, resumo de votos e falhas de validação de CPF.
-- Executados todos os testes (`./mvnw test`) após as mudanças para confirmar que o suite permanece verde.
-- Adicionados testes com MockMvc para o `VoteController` e um teste de integração leve da persistência, validando status/erros HTTP e o índice único de CPF+sessão.
+---
 
-## Testes executados
-- `AgendaServiceTest`: garante a criação da pauta com dados válidos.
-- `VotingSessionServiceTest`: cobre abertura com duração padrão, bloqueio de reabertura dupla e resolução de status pendente, aberto e fechado.
-- `VoteServiceTest`: verifica registro bem-sucedido, prevenção de votos duplicados, rejeição quando o CPF não pode votar, rejeição quando a sessão já foi encerrada, compilação da apuração (total/favor/contra) com sessão ativa e resumo pendente quando não há sessão aberta, além de propagar corretamente exceções de CPF não encontrado.
-- `./mvnw test`: executa a suíte completa via Maven wrapper (o comando `mvn` não estava disponível no ambiente e o wrapper foi usado em seu lugar).
-- Os testes usam o perfil `test` com banco H2 em memória, garantindo isolamento entre execuções e reutilizando o stub de validação de CPF para simular retornos positivos, negativos e `404`.
-- A cobertura foca nas regras de negócio: criação de agendas, controle do ciclo de vida das sessões e tratamento das regras de votação (único voto por CPF, CPF habilitado, contagem e status final).
-- `VoteControllerTest`: com MockMvc e `ApiExceptionHandler`, garante 201 para voto válido e reproduz 409/404/422/400 quando o serviço lança conflitos, CPFs inválidos ou payloads malformados.
-- `VoteRepositoryIntegrationTest`: valida o índice único de votos por CPF+sessão e a query `countVotesByAgendaId` para garantir a apuração correta direto no banco.
+### VotingSessionServiceTest
+Garante o correto funcionamento do ciclo de vida das sessões de votação.
+
+- Abertura de sessão com duração padrão
+- Abertura de sessão com duração personalizada
+- Bloqueio de múltiplas sessões abertas para a mesma pauta
+- Controle correto de status:
+  - **PENDENTE**
+  - **ABERTA**
+  - **FECHADA**
+
+---
+
+### VoteServiceTest
+Cobre as regras críticas relacionadas ao registro e apuração de votos.
+
+- Registro de voto com sucesso
+- Prevenção de votos duplicados por CPF
+- Rejeição de CPF inapto para votação
+- Rejeição de voto quando a sessão está encerrada
+- Apuração com sessão ativa
+- Apuração sem sessão aberta
+- Propagação correta de exceção para CPF não encontrado (404)
+
+---
+
+## 🌐 Camada de Controller
+
+### VoteControllerTest
+Testes de contrato HTTP utilizando **MockMvc**.
+
+- Testes de endpoints REST
+- Validação dos status HTTP:
+  - **201 Created**
+  - **400 Bad Request**
+  - **404 Not Found**
+  - **409 Conflict**
+  - **422 Unprocessable Entity**
+- Integração completa com o `ApiExceptionHandler`
+
+---
+
+## 🗄️ Camada de Persistência
+
+### VoteRepositoryIntegrationTest
+Valida regras de integridade diretamente no banco de dados.
+
+- Validação do índice único **CPF + sessão**
+- Validação da query agregada de apuração executada diretamente no banco
+
+---
+
+## ⚙️ Configuração de Testes
+
+- Execução sob o perfil **test**
+- Banco **H2 em memória**, garantindo isolamento entre execuções
+- Uso de **stubs de CPF** para simular:
+  - CPFs aptos
+  - CPFs inaptos
+  - CPFs inexistentes (404)
+
+Essa abordagem assegura testes rápidos, determinísticos e totalmente independentes de serviços externos.
+
 
 ## Estrutura do código
 
