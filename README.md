@@ -144,14 +144,17 @@ Confirma a propagação da exceção de CPF não encontrado, utilizando o client
 - Refatoradas as entidades `Agenda`, `VotingSession` e `Vote` para aproveitar Lombok e remover getters/setters manuais, mantendo o comportamento atual.
 - Ampliados os testes de serviço para cobrir status pendente/expirado, resumo de votos e falhas de validação de CPF.
 - Executados todos os testes (`./mvnw test`) após as mudanças para confirmar que o suite permanece verde.
+- Adicionados testes com MockMvc para o `VoteController` e um teste de integração leve da persistência, validando status/erros HTTP e o índice único de CPF+sessão.
 
 ## Testes executados
 - `AgendaServiceTest`: garante a criação da pauta com dados válidos.
 - `VotingSessionServiceTest`: cobre abertura com duração padrão, bloqueio de reabertura dupla e resolução de status pendente, aberto e fechado.
-- `VoteServiceTest`: verifica registro bem-sucedido, prevenção de votos duplicados, rejeição quando o CPF não pode votar, compilação da apuração (total/favor/contra) com sessão ativa e resumo pendente quando não há sessão aberta, além de propagar corretamente exceções de CPF não encontrado.
+- `VoteServiceTest`: verifica registro bem-sucedido, prevenção de votos duplicados, rejeição quando o CPF não pode votar, rejeição quando a sessão já foi encerrada, compilação da apuração (total/favor/contra) com sessão ativa e resumo pendente quando não há sessão aberta, além de propagar corretamente exceções de CPF não encontrado.
 - `./mvnw test`: executa a suíte completa via Maven wrapper (o comando `mvn` não estava disponível no ambiente e o wrapper foi usado em seu lugar).
 - Os testes usam o perfil `test` com banco H2 em memória, garantindo isolamento entre execuções e reutilizando o stub de validação de CPF para simular retornos positivos, negativos e `404`.
 - A cobertura foca nas regras de negócio: criação de agendas, controle do ciclo de vida das sessões e tratamento das regras de votação (único voto por CPF, CPF habilitado, contagem e status final).
+- `VoteControllerTest`: com MockMvc e `ApiExceptionHandler`, garante 201 para voto válido e reproduz 409/404/422/400 quando o serviço lança conflitos, CPFs inválidos ou payloads malformados.
+- `VoteRepositoryIntegrationTest`: valida o índice único de votos por CPF+sessão e a query `countVotesByAgendaId` para garantir a apuração correta direto no banco.
 
 ## Estrutura do código
 

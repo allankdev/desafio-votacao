@@ -11,9 +11,14 @@ import com.allan.votacao.dto.response.VoteResultResponse;
 import com.allan.votacao.exception.CpfUnableToVoteException;
 import com.allan.votacao.exception.CpfValidationNotFoundException;
 import com.allan.votacao.exception.DuplicateVoteException;
+import com.allan.votacao.exception.SessionClosedException;
 import com.allan.votacao.model.SessionStatus;
 import com.allan.votacao.model.VoteOption;
+import com.allan.votacao.model.VotingSession;
+import com.allan.votacao.repository.VotingSessionRepository;
 import com.allan.votacao.support.StubCpfValidationClient;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +42,12 @@ class VoteServiceTest {
 
     @Autowired
     private StubCpfValidationClient cpfValidationClient;
+
+    @Autowired
+    private VotingSessionRepository votingSessionRepository;
+
+    @Autowired
+    private Clock clock;
 
     private Long agendaId;
 
@@ -101,5 +112,16 @@ class VoteServiceTest {
 
         assertThrows(CpfValidationNotFoundException.class,
                 () -> voteService.registerVote(agendaId, new VoteRequest("11111111111", VoteOption.SIM)));
+    }
+
+    @Test
+    void shouldRejectVoteWhenSessionClosed() {
+        VotingSession session = votingSessionRepository.findByAgendaId(agendaId)
+                .orElseThrow(() -> new IllegalStateException("session missing"));
+        session.close(LocalDateTime.now(clock));
+        votingSessionRepository.save(session);
+
+        assertThrows(SessionClosedException.class,
+                () -> voteService.registerVote(agendaId, new VoteRequest("55555555555", VoteOption.SIM)));
     }
 }
